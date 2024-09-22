@@ -44,7 +44,7 @@ function create() {
     const trackBackground = this.add.image(game.config.width / 2, game.config.height / 2, 'track').setOrigin(0.5);
     trackBackground.displayWidth = game.config.width;
     trackBackground.displayHeight = game.config.height;
-
+    // HAY QUE REVISAR AQUI WEY, PARA QUE TENDRÍAS UNA BARRERA SIN ESPESOR?
     const barrierThickness = 0;
     const barrierColor = 0x0000ff; 
 
@@ -95,11 +95,35 @@ function create() {
     uiManager.lapsText2.setDepth(1);
     uiManager.timeText.setDepth(1);
 
-    timerWorker.postMessage('start'); // Inicia el temporizador
+    timerWorker.onmessage = function(e) {
+        uiManager.timeText.setText(`Tiempo: ${e.data}`);
+    };
 
+    // Manejo del mensaje de las distancias
+    distanceWorker.onmessage = function(e) {
+        const { player, distance } = e.data;
+        const currentPlayer = players.find(p => p.playerName === player);
+        if (currentPlayer) {
+            currentPlayer.distance = distance;
+        }
+    };
+
+    // Manejo del mensaje de las vueltas
+    lapsWorker.onmessage = function(e) {
+        const { player, laps } = e.data;
+        const currentPlayer = players.find(p => p.playerName === player);
+        if (currentPlayer) {
+            currentPlayer.laps = laps;
+        }
+    };
+
+    // Iniciar el temporizador
+    timerWorker.postMessage('start'); 
+
+    // Inicializar datos para cada jugador
     players.forEach(player => {
         distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
-        lapsWorker.postMessage({ player: player.playerName }); // Enviar el jugador para las vueltas
+        lapsWorker.postMessage({ player: player.playerName }); 
     });
 
     const line = this.add.graphics();
@@ -111,12 +135,19 @@ function create() {
 function update() {
     players.forEach(player => {
         player.update();
-        distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
         
+        // Actualizar distancia en el worker
+        distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
+
         if (player.crossedFinishLine()) {
             lapsWorker.postMessage({ player: player.playerName });
+            
+            if (player.laps >= 3) {
+                this.endGame(`${player.playerName} gana la carrera!`);
+            }
         }
     });
+    uiManager.updateUI(players);
 }
 
 function endGame(message) {
@@ -126,6 +157,6 @@ function endGame(message) {
         player.sprite.setAngularVelocity(0);
     });
 
-    timerWorker.postMessage('stop'); // Detiene el temporizador
+    timerWorker.postMessage('stop');
     uiManager.showVictoryMessage(message);
 }
