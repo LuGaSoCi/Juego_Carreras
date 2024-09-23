@@ -110,7 +110,7 @@ function create() {
     
      // Configuramos para escuchar mensajes del worker del temporizador
      timerWorker.onmessage = function(e) {
-        //const tiempo = e.data;  
+        //const tiempo = e.data;        
         //uiManager.updateTimer(tiempo); 
         console.log('Message from timer worker:', e.data); // Log in main thread console          
     };        
@@ -152,12 +152,12 @@ function update() {
 
             distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
 
-            if (player.crossedFinishLine()) {
+            if (player.crossedFinishLine() && player.laps < 1) {
                 lapsWorker.postMessage({ player: player.playerName });
-
-                if (player.laps >= 3) {
-                    this.endGame(`${player.playerName} gana la carrera!`);
-                }
+            }
+            if (player.laps >= 1) {
+                this.endGame(`${player.playerName} gana la carrera!`);
+                timerWorker.postMessage('stop');
             }
         });
     }
@@ -170,8 +170,7 @@ function endGame(message) {
         player.sprite.setVelocity(0);
         player.sprite.setAngularVelocity(0);
     });
-
-    timerWorker.postMessage('stop');
+    
     timerWorker.terminate();  
     distanceWorker.terminate();  
     lapsWorker.terminate(); 
@@ -179,7 +178,7 @@ function endGame(message) {
     const restartButton = this.add.text(game.config.width / 2, game.config.height / 2 + 100, 'Reiniciar Juego', {
         fontSize: '32px',
         fill: '#ffffff'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(2);
 
     restartButton.setInteractive();    
     restartButton.on('pointerdown', () => {
