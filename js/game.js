@@ -23,14 +23,12 @@ const config = {
 const game = new Phaser.Game(config);
 let players = [];
 let uiManager;
-let timerEvent;
 let finishLine;
 
 // Web Workers
 const distanceWorker = new Worker('./workerDistance.js');
 const lapsWorker = new Worker('./workerLaps.js');
 const timerWorker = new Worker('./workerTimer.js');
-
 function preload() {
     this.load.image('car', './assets/car3.png');
     this.load.image('track', './assets/track.png');
@@ -94,13 +92,16 @@ function create() {
     uiManager.lapsText1.setDepth(1);
     uiManager.lapsText2.setDepth(1);
     uiManager.timeText.setDepth(1);
-
-    timerWorker.onmessage = function(e) {
-        uiManager.timeText.setText(`Tiempo: ${e.data}`);
-    };
+    
+     // Configuramos para escuchar mensajes del worker del temporizador
+     timerWorker.onmessage = function(e) {
+        //const tiempo = e.data;  
+        //uiManager.updateTimer(tiempo); 
+        console.log('Message from timer worker:', e.data); // Log in main thread console          
+    };        
 
     // Manejo del mensaje de las distancias
-    distanceWorker.onmessage = function(e) {
+    distanceWorker.onmessage = function(e) {        
         const { player, distance } = e.data;
         const currentPlayer = players.find(p => p.playerName === player);
         if (currentPlayer) {
@@ -116,38 +117,35 @@ function create() {
             currentPlayer.laps = laps;
         }
     };
-
-    // Iniciar el temporizador
-    timerWorker.postMessage('start'); 
-
+    
     // Inicializar datos para cada jugador
     players.forEach(player => {
         distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
         lapsWorker.postMessage({ player: player.playerName }); 
     });
-
+    timerWorker.postMessage('start');    
+    
     const line = this.add.graphics();
     line.lineStyle(5, 0xff0000, 1);
     line.moveTo(game.config.width / 2 - 100, 100);
     line.lineTo(game.config.width / 2 + 100, 100); 
+    
+    
 }
 
 function update() {
     players.forEach(player => {
-        player.update();
-        
+        player.update();        
         // Actualizar distancia en el worker
         distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
-
-        if (player.crossedFinishLine()) {
+        if (player.crossedFinishLine() && player.laps < 3) {
             lapsWorker.postMessage({ player: player.playerName });
-            
-            if (player.laps >= 3) {
-                this.endGame(`${player.playerName} gana la carrera!`);
-            }
+        }        
+        if (player.laps >= 3) {            
+            this.endGame(`${player.playerName} gana la carrera!`);
         }
-    });
-    uiManager.updateUI(players);
+    });    
+    uiManager.updateUI(players);    
 }
 
 function endGame(message) {
@@ -158,5 +156,17 @@ function endGame(message) {
     });
 
     timerWorker.postMessage('stop');
-    uiManager.showVictoryMessage(message);
+    timerWorker.terminate();  
+    distanceWorker.terminate();  
+    lapsWorker.terminate(); 
+    uiManager.showVictoryMessage(message);    
+    const restartButton = this.add.text(game.config.width / 2, game.config.height / 2 + 100, 'Reiniciar Juego', {
+        fontSize: '32px',
+        fill: '#ffffff'
+    }).setOrigin(0.5);
+
+    restartButton.setInteractive();    
+    restartButton.on('pointerdown', () => {
+        this.scene.restart();  // Reinicia la escena completa
+    });
 }

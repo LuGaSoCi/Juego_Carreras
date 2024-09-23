@@ -39,7 +39,6 @@ export class Player {
         } else {
             this.sprite.setAngularVelocity(0);
         }
-
         if (this.controls.up.isDown) {
             this.scene.physics.velocityFromRotation(this.sprite.rotation, 200, this.sprite.body.velocity);
         } else {
@@ -50,9 +49,7 @@ export class Player {
     calculateDistance() {
         const deltaDistance = Phaser.Math.Distance.Between(this.previousPosition.x, this.previousPosition.y, this.sprite.x, this.sprite.y);
         this.distance += deltaDistance;
-
         this.crossedFinishLine();
-
         this.previousPosition.x = this.sprite.x;
         this.previousPosition.y = this.sprite.y;
     }
