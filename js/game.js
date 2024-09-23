@@ -93,11 +93,10 @@ function create() {
     const startButton = this.add.image(game.config.width / 2, game.config.height / 2, 'startButton')
         .setOrigin(0.5)
         .setInteractive();
-
         startButton.on('pointerdown', () => {
             canMove = true; // Permitir movimiento
             console.log('Start button clicked, sending start message to timerWorker');
-            timerWorker.postMessage('start'); // Iniciar el temporizador
+            uiManager.startTimer();
             startButton.destroy(); // Destruir el botón después de hacer clic
         });
         
@@ -106,14 +105,7 @@ function create() {
     uiManager.distanceText2.setDepth(1);
     uiManager.lapsText1.setDepth(1);
     uiManager.lapsText2.setDepth(1);
-    uiManager.timeText.setDepth(1);
-    
-     // Configuramos para escuchar mensajes del worker del temporizador
-     timerWorker.onmessage = function(e) {
-        //const tiempo = e.data;        
-        //uiManager.updateTimer(tiempo); 
-        console.log('Message from timer worker:', e.data); // Log in main thread console          
-    };        
+    uiManager.timeText.setDepth(1);      
 
     distanceWorker.onmessage = function(e) {
         const { player, distance } = e.data;
@@ -135,7 +127,7 @@ function create() {
         distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
         lapsWorker.postMessage({ player: player.playerName }); 
     });
-    timerWorker.postMessage('start');    
+     
     
     const line = this.add.graphics();
     line.lineStyle(5, 0xff0000, 1);
@@ -157,7 +149,7 @@ function update() {
             }
             if (player.laps >= 1) {
                 this.endGame(`${player.playerName} gana la carrera!`);
-                timerWorker.postMessage('stop');
+                uiManager.stopTimer();
             }
         });
     }

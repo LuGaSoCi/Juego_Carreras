@@ -1,7 +1,11 @@
 export class UIManager {
     constructor(scene) {
         this.scene = scene;
+        this.timerWorker = new Worker('timerWorker.js');
         this.timer = 0;
+        this.timerWorker.onmessage = (event)=>{
+            this.updateTimer(event.data);
+        }
         this.createUI();
     }
 
@@ -20,8 +24,15 @@ export class UIManager {
         this.lapsText2.setText('Vueltas Jugador 2: ' + players[1].laps);                          
     }
     updateTimer(time) {
-        console.log(time);
+        this.timer = time
         this.timeText.setText(`Tiempo: ${time} segundos`); 
+    }
+    startTimer() {
+        this.timerWorker.postMessage('start'); // Envía un mensaje para iniciar el cronómetro
+    }
+
+    stopTimer() {
+        this.timerWorker.postMessage('stop'); // Envía un mensaje para detener el cronómetro
     }
     showVictoryMessage(message) {
         const victoryText = this.scene.add.text(this.scene.cameras.main.centerX, this.scene.cameras.main.centerY, message, { fontSize: '64px', fill: '#fff' }).setOrigin(0.5);

@@ -7,6 +7,7 @@ export class Player {
         this.laps = 0;
         this.previousPosition = { x: this.sprite.x, y: this.sprite.y };
         this.controls = this.setupControls(playerName);
+        this.playerName = playerName
     }
 
     static setFinishLine(line) {
