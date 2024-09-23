@@ -24,6 +24,7 @@ const game = new Phaser.Game(config);
 let players = [];
 let uiManager;
 let finishLine;
+let canMove = false; // Nueva variable para controlar el movimiento
 
 // Web Workers
 const distanceWorker = new Worker('./workerDistance.js');
@@ -32,6 +33,7 @@ const timerWorker = new Worker('./workerTimer.js');
 function preload() {
     this.load.image('car', './assets/car3.png');
     this.load.image('track', './assets/track.png');
+    this.load.image('startButton', './assets/startButton.png'); // Cargar la imagen del botón
 }
 
 function create() {
@@ -42,7 +44,7 @@ function create() {
     const trackBackground = this.add.image(game.config.width / 2, game.config.height / 2, 'track').setOrigin(0.5);
     trackBackground.displayWidth = game.config.width;
     trackBackground.displayHeight = game.config.height;
-    // HAY QUE REVISAR AQUI WEY, PARA QUE TENDRÍAS UNA BARRERA SIN ESPESOR?
+
     const barrierThickness = 0;
     const barrierColor = 0x0000ff; 
 
@@ -87,6 +89,19 @@ function create() {
         this.physics.add.collider(player.sprite, innerBarrier);
     });
 
+    // Crear el botón de inicio como imagen
+    const startButton = this.add.image(game.config.width / 2, game.config.height / 2, 'startButton')
+        .setOrigin(0.5)
+        .setInteractive();
+
+        startButton.on('pointerdown', () => {
+            canMove = true; // Permitir movimiento
+            console.log('Start button clicked, sending start message to timerWorker');
+            timerWorker.postMessage('start'); // Iniciar el temporizador
+            startButton.destroy(); // Destruir el botón después de hacer clic
+        });
+        
+
     uiManager.distanceText1.setDepth(1);
     uiManager.distanceText2.setDepth(1);
     uiManager.lapsText1.setDepth(1);
@@ -100,8 +115,7 @@ function create() {
         console.log('Message from timer worker:', e.data); // Log in main thread console          
     };        
 
-    // Manejo del mensaje de las distancias
-    distanceWorker.onmessage = function(e) {        
+    distanceWorker.onmessage = function(e) {
         const { player, distance } = e.data;
         const currentPlayer = players.find(p => p.playerName === player);
         if (currentPlayer) {
@@ -109,7 +123,6 @@ function create() {
         }
     };
 
-    // Manejo del mensaje de las vueltas
     lapsWorker.onmessage = function(e) {
         const { player, laps } = e.data;
         const currentPlayer = players.find(p => p.playerName === player);
@@ -117,8 +130,7 @@ function create() {
             currentPlayer.laps = laps;
         }
     };
-    
-    // Inicializar datos para cada jugador
+
     players.forEach(player => {
         distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
         lapsWorker.postMessage({ player: player.playerName }); 
@@ -134,18 +146,22 @@ function create() {
 }
 
 function update() {
-    players.forEach(player => {
-        player.update();        
-        // Actualizar distancia en el worker
-        distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
-        if (player.crossedFinishLine() && player.laps < 3) {
-            lapsWorker.postMessage({ player: player.playerName });
-        }        
-        if (player.laps >= 3) {            
-            this.endGame(`${player.playerName} gana la carrera!`);
-        }
-    });    
-    uiManager.updateUI(players);    
+    if (canMove) { // Solo permitir movimiento si el juego ha comenzado
+        players.forEach(player => {
+            player.update();
+
+            distanceWorker.postMessage({ player: player.playerName, distance: player.distance });
+
+            if (player.crossedFinishLine()) {
+                lapsWorker.postMessage({ player: player.playerName });
+
+                if (player.laps >= 3) {
+                    this.endGame(`${player.playerName} gana la carrera!`);
+                }
+            }
+        });
+    }
+    uiManager.updateUI(players);
 }
 
 function endGame(message) {
